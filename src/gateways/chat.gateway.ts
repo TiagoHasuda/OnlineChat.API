@@ -17,8 +17,10 @@ export class ChatGateway implements OnGatewayDisconnect {
 
     handleDisconnect(client: Socket) {
         const user = this.userService.getUserById(client.id)
-        if (!!user)
+        if (!!user) {
             client.leave(user.name)
+            this.messageService.clearMessages(user.name)
+        }
         this.userService.removeUser(client.id)
     }
 
