@@ -3,11 +3,12 @@ import { User } from "src/models/user.model"
 import { EncryptionService } from "./encryption.service"
 
 @Injectable()
-export class UserSerive {
+export class UserService {
     constructor(
         private readonly encryptionService: EncryptionService,
-        private readonly users: { [key: string]: User }
     ) { }
+
+    private readonly users: { [key: string]: User } = {}
 
     newUser(client_id: string, name: string): User & { secretKey: Uint8Array } {
         if (!name) throw new BadRequestException("Name not provided!")

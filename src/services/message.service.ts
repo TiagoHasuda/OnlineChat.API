@@ -3,23 +3,23 @@ import { Message } from "src/models/message.model"
 
 @Injectable()
 export class MessageService {
-    constructor(
-        private readonly messages: { [key: string]: Message[] }
-    ) { }
+    private readonly messages: { [key: string]: Message[] } = {}
 
-    newMessage(from: string, to: string, message: Uint8Array, code: Uint8Array): Message {
+    newMessage(from: string, to: string, message: Uint8Array, code: Uint8Array, date: number): Message {
         if (!message) throw new BadRequestException("Cannot send empty message!")
         const newMessage: Message = {
             from,
             to,
             message,
             code,
-            date: Date.now(),
+            date,
         }
-        if (!this.messages[`${from}${to}`])
+        if (!!this.messages[`${to}${from}`])
             this.messages[`${to}${from}`].unshift(newMessage)
-        else
+        else if (!!this.messages[`${from}${to}`])
             this.messages[`${from}${to}`].unshift(newMessage)
+        else
+            this.messages[`${from}${to}`] = [newMessage]
         return newMessage
     }
 
@@ -34,5 +34,12 @@ export class MessageService {
             skip++
         }
         return res
+    }
+
+    clearMessages(user: string) {
+        Object.keys(this.messages).forEach(key => {
+            if (key.includes(user) && !!this.messages[key])
+                delete this.messages[key]
+        })
     }
 }

@@ -1,13 +1,14 @@
 import { ForbiddenException } from "@nestjs/common"
 import { ConnectedSocket, MessageBody, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets"
 import { Server, Socket } from "socket.io"
+import { Message } from "src/models/message.model"
 import { MessageService } from "src/services/message.service"
-import { UserSerive } from "src/services/user.service"
+import { UserService } from "src/services/user.service"
 
 @WebSocketGateway()
 export class ChatGateway implements OnGatewayDisconnect {
     constructor(
-        private readonly userService: UserSerive,
+        private readonly userService: UserService,
         private readonly messageService: MessageService,
     ) { }
 
@@ -16,40 +17,70 @@ export class ChatGateway implements OnGatewayDisconnect {
 
     handleDisconnect(client: Socket) {
         const user = this.userService.getUserById(client.id)
-        client.leave(user.name)
+        if (!!user)
+            client.leave(user.name)
         this.userService.removeUser(client.id)
     }
 
     @SubscribeMessage('newUser')
     handleNewUser(
-        @MessageBody() rawData: string,
+        @MessageBody() data: [{ name: string }],
         @ConnectedSocket() client: Socket,
     ) {
-        const data = JSON.parse(rawData)
         try {
-            const res = this.userService.newUser(client.id, data.name)
+            const res = this.userService.newUser(client.id, data[0].name)
             client.join(res.name)
-            client.emit('newUserResponse', JSON.stringify(res))
+            client.emit('newUserResponse', res)
         } catch (excp) {
-            client.emit('newUserResponse', JSON.stringify(excp))
+            client.emit('newUserResponse', excp)
+        }
+    }
+
+    @SubscribeMessage('getUser')
+    handleGetUser(
+        @MessageBody() data: [{ name: string }],
+        @ConnectedSocket() client: Socket,
+    ) {
+        try {
+            const find = this.userService.getUser(data[0].name)
+            client.emit('getUserResponse', find)
+        } catch (excp) {
+            client.emit('getUserResponse', excp)
         }
     }
 
     @SubscribeMessage('sendMessage')
     handleSendMessage(
-        @MessageBody() rawData: string,
+        @MessageBody() rawData: [Message],
         @ConnectedSocket() client: Socket,
     ) {
-        const data = JSON.parse(rawData)
+        const data = rawData[0]
         if (!this.userService.verifyUser(data.from, client.id))
-            client.emit('sendMessageResponse', JSON.stringify(new ForbiddenException('User not verified!')))
+            return client.emit('sendMessageResponse', new ForbiddenException('User not verified!'))
         try {
             const to = this.userService.getUser(data.to)
-            const newMessage = this.messageService.newMessage(data.from, data.to, data.message, data.code)
-            client.emit('newMessage', JSON.stringify(newMessage))
-            this.server.in(to.name).emit('newMessage', JSON.stringify(newMessage))
+            const from = this.userService.getUser(data.from)
+            const newMessage = this.messageService.newMessage(data.from, data.to, new Uint8Array(data.message), new Uint8Array(data.code), data.date)
+            newMessage.fromPublicKey = from.publicKey
+            newMessage.toPublicKey = to.publicKey
+            client.emit('newMessage', newMessage)
+            this.server.in(to.name).emit('newMessage', newMessage)
         } catch (excp) {
-            client.emit('sendMessageResponse', JSON.stringify(excp))
+            client.emit('sendMessageResponse', excp)
+        }
+    }
+
+    @SubscribeMessage('getHistory')
+    handleGetHistory(
+        @MessageBody() rawData: [{ from: string, to: string }],
+        @ConnectedSocket() client: Socket,
+    ) {
+        const data = rawData[0]
+        try {
+            const history = this.messageService.getMessages(data.from, data.to)
+            client.emit('getHistoryResponse', history)
+        } catch (excp) {
+            client.emit('getHistoryResponse', excp)
         }
     }
 }

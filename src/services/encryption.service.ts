@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common"
-import nacl from 'tweetnacl'
+import { box } from 'tweetnacl'
 //import naclUtil from 'tweetnacl-util'
 
 @Injectable()
 export class EncryptionService {
     generateKeyPair(): nacl.BoxKeyPair {
-        return nacl.box.keyPair()
+        return box.keyPair()
     }
 
     // generateRandomBytes(): Uint8Array {
