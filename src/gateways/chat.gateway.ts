@@ -85,4 +85,13 @@ export class ChatGateway implements OnGatewayDisconnect {
             client.emit('getHistoryResponse', excp)
         }
     }
+
+    @SubscribeMessage('sendTyping')
+    handleSendTyping(
+        @MessageBody() rawData: [{ from: string, to: string }],
+        @ConnectedSocket() client: Socket,
+    ) {
+        const data = rawData[0]
+        this.server.in(data.to).emit('typing', data)
+    }
 }

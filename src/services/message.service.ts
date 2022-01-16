@@ -23,7 +23,7 @@ export class MessageService {
         return newMessage
     }
 
-    getMessages(user1: string, user2: string, take: number = 15, skip: number = 0): Message[] {
+    getMessages(user1: string, user2: string, take: number = 40, skip: number = 0): Message[] {
         if (!this.messages[`${user1}${user2}`] && !this.messages[`${user2}${user1}`]) throw new BadRequestException("Conversation doesn't exist!")
         const key = !this.messages[`${user1}${user2}`] ? `${user2}${user1}` : `${user1}${user2}`
         const res: Message[] = []
